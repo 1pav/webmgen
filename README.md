@@ -15,6 +15,7 @@ This script converts the given input file to webm. It's a wrapper around ffmpeg 
 ```
 Usage: webmgen [OPTIONS] FILE
 Convert FILE to VP8-encoded webm.
+Output is saved in the same directory of FILE.
 Where appropriate, options accept the following unit prefixes: K, M, G.
 
 Options:

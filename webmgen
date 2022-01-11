@@ -16,6 +16,7 @@ loglevel="warning"
 function usage() {
   echo "Usage: $(basename "${0}") [OPTIONS] FILE"
   echo "Convert FILE to VP8-encoded webm."
+  echo "Output is saved in the same directory of FILE."
   echo "Where appropriate, options accept the following unit prefixes: K, M, G."
   echo 
   echo "Options:"
