@@ -1,0 +1,251 @@
+#!/usr/bin/env bash
+
+# Convert file to VP8-encoded webm
+
+########## Default ffmpeg options ##########
+
+video_codec="libvpx"
+video_bitrate="1M"
+audio_codec="libvorbis"
+audio_bitrate="128K"
+loglevel="warning"
+
+########## Functions ##########
+
+# Show usage information
+function usage() {
+  echo "Usage: $(basename "${0}") [OPTIONS] FILE"
+  echo "Convert FILE to VP8-encoded webm."
+  echo "Where appropriate, options accept the following unit prefixes: K, M, G."
+  echo 
+  echo "Options:"
+  echo "  -r RESOLUTION     vertical RESOLUTION (keeps aspect ratio)"
+  echo "  -v BITRATE        video BITRATE (default: ${video_bitrate})"
+  echo "  -a BITRATE        audio BITRATE (default: ${audio_bitrate})"
+  echo "  -s SIZE           SIZE of output file(s), expressed in bytes. Actual size can be slightly more"
+  echo "                    than requested size. If -p is not set, bitrate specified by -v is ignored."
+  echo "  -p                split output into multiple files. Requires -s."
+  echo "  -c [START],[END]  cut input file from START to END before encoding."
+  echo "                    START, END are formatted as HH:MM:SS; only one can be omitted."
+  echo "  -t THREADS        number of threads to use for encoding (default: one less than the number of CPUs)"
+  echo "  -h                show help and exit"
+}
+
+# Print to stderr
+function error() {
+  echo "${*}" >&2
+}
+
+# Delete any leftover file before exiting
+function cleanup() {
+  local status="${?}"
+  rm --force "${tmp_file}"
+  exit "${status}"
+}
+
+# Calculate duration in seconds of video file
+function get_duration() {
+  local duration
+  if ! duration="$(ffprobe -i "${1}" -show_entries format=duration -v quiet -of csv='p=0')"; then
+    return 1
+  fi
+  bc --mathlib <<< "scale=0; ${duration}/1" # Floor
+}
+
+# Calculate ceiling of number
+function ceil() {
+  python3 -c "from math import ceil; print(ceil(${1}))"
+}
+
+# Convert number string to its corresponding value in bits/bytes (e.g. 128k -> 128000)
+function to_number() {
+  local number
+  if [[ "${1}" =~ (k|K)$ ]]; then
+    number="$(bc --mathlib <<< "10^3 * ${1::-1}")"
+  elif [[ "${1}" =~ M$ ]]; then
+    number="$(bc --mathlib <<< "10^6 * ${1::-1}")"
+  elif [[ "${1}" =~ G$ ]]; then
+    number="$(bc --mathlib <<< "10^9 * ${1::-1}")"
+  else # No known suffixes, assume raw bits/bytes
+    number="${1}"
+  fi
+  ceil "${number}"
+}
+
+########## Main ##########
+
+# Hook cleanup function
+trap cleanup EXIT
+
+# Check dependencies
+deps=("ffmpeg" "ffprobe" "grep" "bc" "lscpu" "python3")
+for dep in "${deps[@]}"; do
+  if ! command -v "${dep}" >/dev/null 2>&1; then
+    error "Error: ${dep} not found. You may need to install it."
+    exit 1
+  fi
+done
+
+# Parse options
+while getopts ":hr:s:t:c:v:a:p" option; do
+  case "${option}" in
+    h)
+      usage
+      exit 0
+      ;;
+    r) 
+      output_vres="${OPTARG}"
+      ;;
+    s)
+      output_size="${OPTARG}"
+      ;;
+    t)
+      threads="${OPTARG}"
+      ;;
+    c)
+      cut_start="${OPTARG%,*}"
+      cut_end="${OPTARG#*,}"
+      cut_args=()
+      [[ "${cut_start}" ]] && cut_args+=(-ss "${cut_start}")
+      [[ "${cut_end}" ]] && cut_args+=(-to "${cut_end}")
+      ;;
+    p)
+      split=true
+      ;;
+    v)
+      video_bitrate="${OPTARG}"
+      custom_video_bitrate=true
+      ;;
+    a)
+      audio_bitrate="${OPTARG}"
+      ;;
+    :)
+      error "Error: option -${OPTARG} requires an argument."
+      exit 1
+      ;;
+    ?)
+      error "Error: unknown option -${OPTARG}."
+      exit 1
+      ;;
+  esac
+done
+
+# Check positional arguments
+shift $((OPTIND-1))
+if [[ "${#}" -ne 1 ]]; then
+  error "Error: missing input file."
+  exit 1
+fi
+input_file="${1}"
+
+# Option -p requires -s
+if [[ -n "${split}" && -z "${output_size}" ]]; then
+  error "Error: missing option -s."
+  exit 1
+fi
+
+# Multithreading options
+if [[ -z "${threads}" ]]; then
+  if ! cores="$(lscpu --parse=cpu | grep --count --invert-match '^#')"; then
+    echo "Warning: failed to get CPU count, disabling multithreading."
+    threads="1"
+  else
+    threads="$((cores-1))"
+  fi
+fi
+
+if [[ ${#cut_args[@]} -gt 0 ]]; then
+  # Cut video
+  if ! tmp_file="$(mktemp --suffix=".${input_file##*.}")"; then
+    error "Error: failed to create temporary file for cutting."
+    exit 1
+  fi
+  set -x
+  ffmpeg -y -loglevel warning -i "${input_file}" -c copy "${cut_args[@]}" "${tmp_file}"
+  { status=${?}; set +x; } 2>/dev/null
+  if [[ "${status}" -ne 0 ]]; then
+    error "Error: failed to cut input file."
+    exit 1
+  fi
+  input_file="${tmp_file}"
+fi
+
+# Common ffmpeg options
+ffmpeg_args=(-i "${input_file}" -loglevel "${loglevel}" -threads "${threads}" -c:a "${audio_codec}" -b:a "${audio_bitrate}" -c:v "${video_codec}")
+
+if [[ -n "${output_vres}" ]]; then
+  # Set video scaling
+  if ! input_vres="$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=s=x:p=0 "${input_file}")"; then
+    error "Error: failed to get input file resolution."
+    exit 1
+  fi
+  if [[ "${input_vres}" -lt "${output_vres}" ]]; then
+    error "Error: attempting to upscale resolution."
+    exit 1
+  fi
+  ffmpeg_args+=(-vf scale="-2:${output_vres}")
+fi
+
+if [[ -n "${split}" ]]; then
+  # Generate multiple webms
+  if ! duration="$(get_duration "${input_file}")"; then
+    error "Error: failed to get input file duration."
+    exit 1
+  fi
+  sec=0
+  j=1
+  until ((sec >= duration))
+  do
+    filename="${1%.*}-${j}.webm"
+    set -x
+    ffmpeg "${ffmpeg_args[@]}" -ss "${sec}" -fs "${output_size}" -b:v "${video_bitrate}" "${filename}"
+    { status=${?}; set +x; } 2>/dev/null
+    if [[ "${status}" -ne 0 ]]; then
+      error "Error: failed to create webm file."
+      exit "${status}"
+    fi
+    if ! split_duration="$(get_duration "${filename}")"; then
+      error "Error: failed to get split file duration."
+      exit 1
+    fi
+    sec="$((sec+split_duration))"
+    j="$((j+1))"
+  done
+else
+  # Generate single webm
+  if [[ -n "${output_size}" ]]; then
+    # Set video bitrate to fit within file size limit
+    if [[ -n "${custom_video_bitrate}" ]]; then
+      echo "Warning: ignoring video bitrate (-v ${video_bitrate})."
+    fi
+    if ! duration="$(get_duration "${input_file}")"; then
+      error "Error: failed to get input file duration."
+      exit 1
+    fi
+    if ! output_size_bytes="$(to_number "${output_size}")"; then
+      error "Error: invalid argument for option -s."
+      exit 1
+    fi
+    if ! file_bitrate="$(bc --mathlib <<< "(8*${output_size_bytes})/${duration}")"; then
+      error "Error: failed to calculate output file bitrate."
+      exit 1
+    fi
+    if ! file_bitrate="$(ceil "${file_bitrate}")"; then
+      error "Error: failed to calculate output file bitrate."
+      exit 1
+    fi
+    if ! audio_bitrate="$(to_number "${audio_bitrate}")"; then
+      error "Error: invalid argument for option -a."
+      exit 1
+    fi
+    video_bitrate="$((file_bitrate-audio_bitrate))"
+  fi
+  ffmpeg_args+=(-b:v "${video_bitrate}" "${1%.*}.webm")
+  set -x
+  ffmpeg "${ffmpeg_args[@]}"
+  { status=${?}; set +x; } 2>/dev/null
+  if [[ "${status}" -ne 0 ]]; then
+    error "Error: failed to create webm file."
+    exit "${status}"
+  fi
+fi
