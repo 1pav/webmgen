@@ -145,6 +145,16 @@ if [[ -n "${split}" && -z "${output_size}" ]]; then
   exit 1
 fi
 
+# Check input file
+if ! [[ -e "${input_file}" ]]; then
+  error "Error: input file does not exist."
+  exit 1
+fi
+if ! [[ -f "${input_file}" ]]; then
+  error "Error: input file is not a regular file."
+  exit 1
+fi
+
 # Multithreading options
 if [[ -z "${threads}" ]]; then
   if ! cores="$(lscpu --parse=cpu | grep --count --invert-match '^#')"; then
