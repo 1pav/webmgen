@@ -214,7 +214,11 @@ if [[ -n "${output_vres}" ]]; then
     error "Error: attempting to upscale resolution."
     exit 1
   fi
-  ffmpeg_args+=(-vf scale="-2:${output_vres}")
+  if [[ "${input_vres}" -eq "${output_vres}" ]]; then
+    echo "Warning: output resolution matches input, ignoring (-r ${output_vres})."
+  else
+    ffmpeg_args+=(-vf scale="-2:${output_vres}")
+  fi
 fi
 
 if [[ -n "${split}" ]]; then
