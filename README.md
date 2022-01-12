@@ -15,7 +15,7 @@ This script converts the given input file to webm. It's a wrapper around ffmpeg 
 ```
 Usage: webmgen [OPTIONS] FILE
 Convert FILE to VP8-encoded webm.
-Output is saved in the same directory of FILE.
+Output is saved in the same directory of FILE, unless -d option is used.
 Where appropriate, options accept the following unit prefixes: K, M, G.
 
 Options:
@@ -27,6 +27,7 @@ Options:
   -p                split output into multiple files. Requires -s.
   -c [START],[END]  cut input file from START to END before encoding.
                     START, END are formatted as HH:MM:SS; only one can be omitted.
+  -d DIRECTORY      output DIRECTORY (default: directory of input FILE)
   -t THREADS        number of threads to use for encoding (default: one less than the number of CPUs)
   -h                show help and exit
 ```
