@@ -16,7 +16,7 @@ loglevel="warning"
 function usage() {
   echo "Usage: $(basename "${0}") [OPTIONS] FILE"
   echo "Convert FILE to VP8-encoded webm."
-  echo "Output is saved in the same directory of FILE."
+  echo "Output is saved in the same directory of FILE, unless -d option is used."
   echo "Where appropriate, options accept the following unit prefixes: K, M, G."
   echo 
   echo "Options:"
@@ -28,6 +28,7 @@ function usage() {
   echo "  -p                split output into multiple files. Requires -s."
   echo "  -c [START],[END]  cut input file from START to END before encoding."
   echo "                    START, END are formatted as HH:MM:SS; only one can be omitted."
+  echo "  -d DIRECTORY      output DIRECTORY (default: directory of input FILE)"
   echo "  -t THREADS        number of threads to use for encoding (default: one less than the number of CPUs)"
   echo "  -h                show help and exit"
 }
@@ -88,7 +89,7 @@ for dep in "${deps[@]}"; do
 done
 
 # Parse options
-while getopts ":hr:s:t:c:v:a:p" option; do
+while getopts ":hr:s:t:c:v:a:d:p" option; do
   case "${option}" in
     h)
       usage
@@ -120,12 +121,15 @@ while getopts ":hr:s:t:c:v:a:p" option; do
     a)
       audio_bitrate="${OPTARG}"
       ;;
+    d)
+      output_dir="${OPTARG}"
+      ;;
     :)
-      error "Error: option -${OPTARG} requires an argument."
+      error "Error: '-${OPTARG}' option requires an argument."
       exit 1
       ;;
     ?)
-      error "Error: unknown option -${OPTARG}."
+      error "Error: unknown option '-${OPTARG}'."
       exit 1
       ;;
   esac
@@ -134,25 +138,41 @@ done
 # Check positional arguments
 shift $((OPTIND-1))
 if [[ "${#}" -ne 1 ]]; then
-  error "Error: missing input file."
+  error "Error: missing input FILE."
   exit 1
 fi
-input_file="${1}"
 
 # Option -p requires -s
 if [[ -n "${split}" && -z "${output_size}" ]]; then
-  error "Error: missing option -s."
+  error "Error: missing option '-s SIZE'."
   exit 1
 fi
 
 # Check input file
-if ! [[ -e "${input_file}" ]]; then
-  error "Error: input file does not exist."
+if ! [[ -e "${1}" ]]; then
+  error "Error: file '${1}' does not exist."
   exit 1
 fi
-if ! [[ -f "${input_file}" ]]; then
-  error "Error: input file is not a regular file."
+if ! [[ -f "${1}" ]]; then
+  error "Error: '${1}' is not a regular file."
   exit 1
+fi
+input_filepath="${1}"
+input_filename="$(basename "${1}")"
+
+# Output directory
+if [[ -n "${output_dir}" ]]; then
+  if ! [[ -e "${output_dir}" ]]; then
+    error "Error: directory '${output_dir}' does not exist."
+    exit 1
+  fi
+  if ! [[ -d "${output_dir}" ]]; then
+    error "Error: '${output_dir}' is not a directory."
+    exit 1
+  fi
+  output_dir="${output_dir%/}"
+else
+  output_dir="$(dirname "${input_filepath}")"
 fi
 
 # Multithreading options
@@ -167,26 +187,26 @@ fi
 
 if [[ ${#cut_args[@]} -gt 0 ]]; then
   # Cut video
-  if ! tmp_file="$(mktemp --suffix=".${input_file##*.}")"; then
+  if ! tmp_file="$(mktemp --suffix=".${input_filename##*.}")"; then
     error "Error: failed to create temporary file for cutting."
     exit 1
   fi
   set -x
-  ffmpeg -y -loglevel warning -i "${input_file}" -c copy "${cut_args[@]}" "${tmp_file}"
+  ffmpeg -y -loglevel warning -i "${input_filepath}" -c copy "${cut_args[@]}" "${tmp_file}"
   { status=${?}; set +x; } 2>/dev/null
   if [[ "${status}" -ne 0 ]]; then
     error "Error: failed to cut input file."
     exit 1
   fi
-  input_file="${tmp_file}"
+  input_filepath="${tmp_file}"
 fi
 
 # Common ffmpeg options
-ffmpeg_args=(-i "${input_file}" -loglevel "${loglevel}" -threads "${threads}" -c:a "${audio_codec}" -b:a "${audio_bitrate}" -c:v "${video_codec}")
+ffmpeg_args=(-i "${input_filepath}" -loglevel "${loglevel}" -threads "${threads}" -c:a "${audio_codec}" -b:a "${audio_bitrate}" -c:v "${video_codec}")
 
 if [[ -n "${output_vres}" ]]; then
   # Set video scaling
-  if ! input_vres="$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=s=x:p=0 "${input_file}")"; then
+  if ! input_vres="$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=s=x:p=0 "${input_filepath}")"; then
     error "Error: failed to get input file resolution."
     exit 1
   fi
@@ -199,7 +219,7 @@ fi
 
 if [[ -n "${split}" ]]; then
   # Generate multiple webms
-  if ! duration="$(get_duration "${input_file}")"; then
+  if ! duration="$(get_duration "${input_filepath}")"; then
     error "Error: failed to get input file duration."
     exit 1
   fi
@@ -207,15 +227,15 @@ if [[ -n "${split}" ]]; then
   j=1
   until ((sec >= duration))
   do
-    filename="${1%.*}-${j}.webm"
+    output_filename="${input_filename%.*}-${j}.webm"
     set -x
-    ffmpeg "${ffmpeg_args[@]}" -ss "${sec}" -fs "${output_size}" -b:v "${video_bitrate}" "${filename}"
+    ffmpeg "${ffmpeg_args[@]}" -ss "${sec}" -fs "${output_size}" -b:v "${video_bitrate}" "${output_dir}/${output_filename}"
     { status=${?}; set +x; } 2>/dev/null
     if [[ "${status}" -ne 0 ]]; then
       error "Error: failed to create webm file."
       exit "${status}"
     fi
-    if ! split_duration="$(get_duration "${filename}")"; then
+    if ! split_duration="$(get_duration "${output_dir}/${output_filename}")"; then
       error "Error: failed to get split file duration."
       exit 1
     fi
@@ -229,12 +249,12 @@ else
     if [[ -n "${custom_video_bitrate}" ]]; then
       echo "Warning: ignoring video bitrate (-v ${video_bitrate})."
     fi
-    if ! duration="$(get_duration "${input_file}")"; then
+    if ! duration="$(get_duration "${input_filepath}")"; then
       error "Error: failed to get input file duration."
       exit 1
     fi
     if ! output_size_bytes="$(to_number "${output_size}")"; then
-      error "Error: invalid argument for option -s."
+      error "Error: invalid argument for option '-s SIZE'."
       exit 1
     fi
     if ! file_bitrate="$(bc --mathlib <<< "(8*${output_size_bytes})/${duration}")"; then
@@ -246,12 +266,12 @@ else
       exit 1
     fi
     if ! audio_bitrate="$(to_number "${audio_bitrate}")"; then
-      error "Error: invalid argument for option -a."
+      error "Error: invalid argument for option '-a BITRATE'."
       exit 1
     fi
     video_bitrate="$((file_bitrate-audio_bitrate))"
   fi
-  ffmpeg_args+=(-b:v "${video_bitrate}" "${1%.*}.webm")
+  ffmpeg_args+=(-b:v "${video_bitrate}" "${output_dir}/${input_filename%.*}.webm")
   set -x
   ffmpeg "${ffmpeg_args[@]}"
   { status=${?}; set +x; } 2>/dev/null
