@@ -6,6 +6,7 @@
 
 video_codec="libvpx"
 video_bitrate="1M"
+video_quality="best"
 audio_codec="libvorbis"
 audio_bitrate="128K"
 loglevel="warning"
@@ -202,7 +203,7 @@ if [[ ${#cut_args[@]} -gt 0 ]]; then
 fi
 
 # Common ffmpeg options
-ffmpeg_args=(-i "${input_filepath}" -loglevel "${loglevel}" -threads "${threads}" -c:a "${audio_codec}" -b:a "${audio_bitrate}" -c:v "${video_codec}")
+ffmpeg_args=(-i "${input_filepath}" -loglevel "${loglevel}" -threads "${threads}" -c:a "${audio_codec}" -b:a "${audio_bitrate}" -c:v "${video_codec}" -quality "${video_quality}")
 
 if [[ -n "${output_vres}" ]]; then
   # Set video scaling
