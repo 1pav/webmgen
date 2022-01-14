@@ -42,7 +42,7 @@ function error() {
 # Delete any leftover file before exiting
 function cleanup() {
   local status="${?}"
-  rm --force "${tmp_file}"
+  rm --recursive --force "${temp_dir}" >/dev/null 2>&1
   exit "${status}"
 }
 
@@ -198,9 +198,15 @@ if [[ -z "${threads}" ]]; then
   fi
 fi
 
+# Create directory for temporary files
+if ! temp_dir="$(mktemp --directory)"; then
+  error "Error: failed to create temporary directory."
+  exit 1
+fi
+
 if [[ ${#cut_args[@]} -gt 0 ]]; then
   # Cut video
-  if ! tmp_file="$(mktemp --suffix=".${input_filename##*.}")"; then
+  if ! tmp_file="$(mktemp -t -p "${temp_dir}" --suffix=".${input_filename##*.}")"; then
     error "Error: failed to create temporary file for cutting."
     exit 1
   fi
