@@ -75,6 +75,18 @@ function to_number() {
   ceil "${number}"
 }
 
+# Encode webm with two-pass
+function encode() {
+  local args=("${@}")
+  local args_count="${#args[@]}"
+  local index_last=$((args_count-1))
+  # ${arr[@]::length} slice from 0 to length-1 inclusive
+  local args_pass1=("${args[@]::index_last}" -pass "1" -an -y -f "null" "/dev/null")
+  local args_pass2=("${args[@]::index_last}" -pass "2" "${args[-1]}")
+  (set -x; ffmpeg "${args_pass1[@]}") || return 1
+  (set -x; ffmpeg "${args_pass2[@]}") || return 1
+}
+
 ########## Main ##########
 
 # Hook cleanup function
@@ -233,14 +245,12 @@ if [[ -n "${split}" ]]; then
   until ((sec >= duration))
   do
     output_filename="${input_filename%.*}-${j}.webm"
-    set -x
-    ffmpeg "${ffmpeg_args[@]}" -ss "${sec}" -fs "${output_size}" -b:v "${video_bitrate}" "${output_dir}/${output_filename}"
-    { status=${?}; set +x; } 2>/dev/null
-    if [[ "${status}" -ne 0 ]]; then
+    output_filepath="${output_dir}/${output_filename}"
+    if ! encode "${ffmpeg_args[@]}" -ss "${sec}" -fs "${output_size}" -b:v "${video_bitrate}" "${output_filepath}"; then
       error "Error: failed to create webm file."
-      exit "${status}"
+      exit 1
     fi
-    if ! split_duration="$(get_duration "${output_dir}/${output_filename}")"; then
+    if ! split_duration="$(get_duration "${output_filepath}")"; then
       error "Error: failed to get split file duration."
       exit 1
     fi
@@ -276,12 +286,8 @@ else
     fi
     video_bitrate="$((file_bitrate-audio_bitrate))"
   fi
-  ffmpeg_args+=(-b:v "${video_bitrate}" "${output_dir}/${input_filename%.*}.webm")
-  set -x
-  ffmpeg "${ffmpeg_args[@]}"
-  { status=${?}; set +x; } 2>/dev/null
-  if [[ "${status}" -ne 0 ]]; then
+  if ! encode "${ffmpeg_args[@]}" -b:v "${video_bitrate}" "${output_dir}/${input_filename%.*}.webm"; then
     error "Error: failed to create webm file."
-    exit "${status}"
+    exit 1
   fi
 fi
