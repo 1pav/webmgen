@@ -9,7 +9,7 @@ video_bitrate="1M"
 video_quality="best"
 audio_codec="libvorbis"
 audio_bitrate="128K"
-loglevel="warning"
+loglevel="error"
 
 ########## Functions ##########
 
