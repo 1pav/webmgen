@@ -23,7 +23,7 @@ Options:
   -v BITRATE        video BITRATE (default: 1M)
   -a BITRATE        audio BITRATE (default: 128K)
   -s SIZE           SIZE of output file(s), expressed in bytes. Actual size can be slightly more
-                    than requested size. If -p is not set, bitrate specified by -v is ignored.
+                    or less than requested size. If -p is not set, bitrate specified by -v is ignored.
   -p                split output into multiple files. Requires -s.
   -c [START],[END]  cut input file from START to END before encoding.
                     START, END are formatted as HH:MM:SS; only one can be omitted.

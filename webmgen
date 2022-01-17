@@ -25,7 +25,7 @@ function usage() {
   echo "  -v BITRATE        video BITRATE (default: ${video_bitrate})"
   echo "  -a BITRATE        audio BITRATE (default: ${audio_bitrate})"
   echo "  -s SIZE           SIZE of output file(s), expressed in bytes. Actual size can be slightly more"
-  echo "                    than requested size. If -p is not set, bitrate specified by -v is ignored."
+  echo "                    or less than requested size. If -p is not set, bitrate specified by -v is ignored."
   echo "  -p                split output into multiple files. Requires -s."
   echo "  -c [START],[END]  cut input file from START to END before encoding."
   echo "                    START, END are formatted as HH:MM:SS; only one can be omitted."
