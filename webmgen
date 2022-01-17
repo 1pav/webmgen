@@ -229,7 +229,7 @@ if [[ -n "${output_vres}" ]]; then
     exit 1
   fi
   if [[ "${input_vres}" -lt "${output_vres}" ]]; then
-    error "Error: attempting to upscale resolution."
+    error "Error: attempting to upscale resolution (-r ${output_vres})."
     exit 1
   fi
   if [[ "${input_vres}" -eq "${output_vres}" ]]; then
