@@ -2,7 +2,7 @@
 
 # Convert file to VP8-encoded webm
 
-########## Default ffmpeg options ##########
+# Default ffmpeg options ###############################################################################################
 
 video_codec="libvpx"
 video_bitrate="1M"
@@ -11,7 +11,7 @@ audio_codec="libvorbis"
 audio_bitrate="128K"
 loglevel="error"
 
-########## Functions ##########
+# Functions ############################################################################################################
 
 # Show usage information
 function usage() {
@@ -87,7 +87,7 @@ function encode() {
   rm --force "${log_filepath}" >/dev/null 2>&1
 }
 
-########## Main ##########
+# Main #################################################################################################################
 
 # Hook cleanup function
 trap cleanup EXIT
@@ -221,7 +221,8 @@ if [[ ${#cut_args[@]} -gt 0 ]]; then
 fi
 
 # Common ffmpeg options
-ffmpeg_args=(-i "${input_filepath}" -loglevel "${loglevel}" -threads "${threads}" -c:a "${audio_codec}" -b:a "${audio_bitrate}" -c:v "${video_codec}" -quality "${video_quality}")
+ffmpeg_args=(-i "${input_filepath}" -loglevel "${loglevel}" -threads "${threads}" -c:a "${audio_codec}" \
+  -b:a "${audio_bitrate}" -c:v "${video_codec}" -quality "${video_quality}")
 
 if [[ -n "${output_vres}" ]]; then
   # Set video scaling
