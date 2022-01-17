@@ -52,27 +52,24 @@ function get_duration() {
   if ! duration="$(ffprobe -i "${1}" -show_entries format=duration -v quiet -of csv='p=0')"; then
     return 1
   fi
-  bc --mathlib <<< "scale=0; ${duration}/1" # Floor
-}
-
-# Calculate ceiling of number
-function ceil() {
-  python3 -c "from math import ceil; print(ceil(${1}))"
+  calc "floor(${duration})"
 }
 
 # Convert number string to its corresponding value in bits/bytes (e.g. 128k -> 128000)
 function to_number() {
-  local number
   if [[ "${1}" =~ (k|K)$ ]]; then
-    number="$(bc --mathlib <<< "10^3 * ${1::-1}")"
+    calc "ceil(10**3 * ${1::-1})"
   elif [[ "${1}" =~ M$ ]]; then
-    number="$(bc --mathlib <<< "10^6 * ${1::-1}")"
+    calc "ceil(10**6 * ${1::-1})"
   elif [[ "${1}" =~ G$ ]]; then
-    number="$(bc --mathlib <<< "10^9 * ${1::-1}")"
+    calc "ceil(10**9 * ${1::-1})"
   else # No known suffixes, assume raw bits/bytes
-    number="${1}"
+    calc "ceil(${1})"
   fi
-  ceil "${number}"
+}
+
+function calc() {
+  python3 -c "from math import floor, ceil; print(${1})"
 }
 
 # Encode webm with two-pass
@@ -95,7 +92,7 @@ function encode() {
 trap cleanup EXIT
 
 # Check dependencies
-deps=("ffmpeg" "ffprobe" "grep" "bc" "lscpu" "python3")
+deps=("ffmpeg" "ffprobe" "grep" "lscpu" "python3")
 for dep in "${deps[@]}"; do
   if ! command -v "${dep}" >/dev/null 2>&1; then
     error "Error: ${dep} not found. You may need to install it."
@@ -280,11 +277,7 @@ else
       error "Error: invalid argument for option '-s SIZE'."
       exit 1
     fi
-    if ! file_bitrate="$(bc --mathlib <<< "(8*${output_size_bytes})/${duration}")"; then
-      error "Error: failed to calculate output file bitrate."
-      exit 1
-    fi
-    if ! file_bitrate="$(ceil "${file_bitrate}")"; then
+    if ! file_bitrate="$(calc "ceil((8*${output_size_bytes})/${duration})")"; then
       error "Error: failed to calculate output file bitrate."
       exit 1
     fi
