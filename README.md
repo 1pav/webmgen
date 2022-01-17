@@ -31,3 +31,41 @@ Options:
   -t THREADS        number of threads to use for encoding (default: one less than the number of CPUs)
   -h                show help and exit
 ```
+
+## Examples
+
+Convert to webm using default encoding settings (`-v 1M`, `-a 128K`):
+
+```
+webmgen input.mp4
+```
+
+Set video and audio bitrate to 2 Mb/s and 256 Kb/s respectively:
+
+```
+webmgen -v 2M -a 256K input.mp4 input.mp4
+```
+
+Limit file size to 5 MB:
+
+```
+webmgen -s 5M input.mp4
+```
+
+Cut first 30 seconds of video before converting:
+
+```
+webmgen -c ,00:00:30 input.mp4
+```
+
+Split into multiple files of size 500 KB:
+
+```
+webmgen -p -s 500K input.mp4
+```
+
+Downscale resolution to 720p, keeping aspect ratio:
+
+```
+webmgen -r 720 input.mp4
+```
