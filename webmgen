@@ -210,7 +210,7 @@ if [[ ${#cut_args[@]} -gt 0 ]]; then
     exit 1
   fi
   set -x
-  ffmpeg -y -loglevel "${loglevel}" -i "${input_filepath}" -c copy "${cut_args[@]}" "${tmp_file}"
+  ffmpeg -i "${input_filepath}" -loglevel "${loglevel}" -threads "${threads}" -y -c copy "${cut_args[@]}" "${tmp_file}"
   { status=${?}; set +x; } 2>/dev/null
   if [[ "${status}" -ne 0 ]]; then
     error "Error: failed to cut input file."
