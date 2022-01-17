@@ -1,6 +1,6 @@
 # README
 
-This script converts the given input file to webm. It's a wrapper around ffmpeg with the purpose of being easier to use when doing simple conversions. Files are encoded with VP8/Vorbis.
+This script converts the given input file to webm. It's a wrapper around ffmpeg with the purpose of being easier to use when doing simple conversions. Files are encoded with VP8/Vorbis (two-pass).
 
 ## Features
 
