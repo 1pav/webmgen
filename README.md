@@ -4,8 +4,8 @@ This script converts the given input file to webm. It's a wrapper around ffmpeg 
 
 ## Features
 
-- Downscale resolution
 - Set video and audio bitrate
+- Downscale resolution
 - Limit output size
 - Split output into multiple files of given size
 - Cut video before encoding
@@ -21,7 +21,7 @@ webmgen input.mp4
 Set video and audio bitrate to 2 Mb/s and 256 Kb/s respectively:
 
 ```
-webmgen -v 2M -a 256K input.mp4 input.mp4
+webmgen -v 2M -a 256K input.mp4
 ```
 
 Limit file size to 5 MB:
