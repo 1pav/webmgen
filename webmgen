@@ -80,11 +80,13 @@ function encode() {
   local args=("${@}")
   local args_count="${#args[@]}"
   local index_last=$((args_count-1))
+  local log_filepath="${temp_dir}/2pass"
   # ${arr[@]::length} slice from 0 to length-1 inclusive
-  local args_pass1=("${args[@]::index_last}" -pass "1" -an -y -f "null" "/dev/null")
-  local args_pass2=("${args[@]::index_last}" -pass "2" "${args[-1]}")
+  local args_pass1=("${args[@]::index_last}" -pass "1" -passlogfile "${log_filepath}" -an -y -f "null" "/dev/null")
+  local args_pass2=("${args[@]::index_last}" -pass "2" -passlogfile "${log_filepath}" "${args[-1]}")
   (set -x; ffmpeg "${args_pass1[@]}") || return 1
   (set -x; ffmpeg "${args_pass2[@]}") || return 1
+  rm --force "${log_filepath}" >/dev/null 2>&1
 }
 
 ########## Main ##########
