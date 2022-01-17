@@ -39,7 +39,7 @@ function error() {
   echo "${*}" >&2
 }
 
-# Delete any leftover file before exiting
+# Delete any leftover files before exiting
 function cleanup() {
   local status="${?}"
   rm --recursive --force "${temp_dir}" >/dev/null 2>&1
@@ -68,6 +68,7 @@ function to_number() {
   fi
 }
 
+# Evaluate math expressions
 function calc() {
   python3 -c "from math import floor, ceil; print(${1})"
 }
