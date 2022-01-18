@@ -67,5 +67,6 @@ Options:
                     START, END are formatted as HH:MM:SS; only one can be omitted.
   -d DIRECTORY      output DIRECTORY (default: directory of input FILE)
   -t THREADS        number of threads to use for encoding (default: one less than the number of CPUs)
+  -v                verbose mode
   -h                show help and exit
 ```
