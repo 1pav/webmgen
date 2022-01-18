@@ -31,12 +31,20 @@ function usage() {
   echo "                    START, END are formatted as HH:MM:SS; only one can be omitted."
   echo "  -d DIRECTORY      output DIRECTORY (default: directory of input FILE)"
   echo "  -t THREADS        number of threads to use for encoding (default: one less than the number of CPUs)"
+  echo "  -v                verbose mode"
   echo "  -h                show help and exit"
 }
 
 # Print to stderr
 function error() {
-  echo "${*}" >&2
+  echo "${@}" >&2
+}
+
+# Print to stdout
+function log() {
+  if [[ "${verbose}" == true ]]; then
+    echo "${@}"
+  fi
 }
 
 # Delete any leftover files before exiting
@@ -82,8 +90,8 @@ function encode() {
   # ${arr[@]::length} slice from 0 to length-1 inclusive
   local args_pass1=("${args[@]::index_last}" -pass "1" -passlogfile "${log_filepath}" -an -y -f "null" "/dev/null")
   local args_pass2=("${args[@]::index_last}" -pass "2" -passlogfile "${log_filepath}" "${args[-1]}")
-  (set -x; ffmpeg "${args_pass1[@]}") || return 1
-  (set -x; ffmpeg "${args_pass2[@]}") || return 1
+  ([[ "${verbose}" == true ]] && set -x; ffmpeg "${args_pass1[@]}") || return 1
+  ([[ "${verbose}" == true ]] && set -x; ffmpeg "${args_pass2[@]}") || return 1
   rm --force "${log_filepath}" >/dev/null 2>&1
 }
 
@@ -102,7 +110,7 @@ for dep in "${deps[@]}"; do
 done
 
 # Parse options
-while getopts ":hr:s:t:c:v:a:d:p" option; do
+while getopts ":hr:s:t:c:b:a:d:pv" option; do
   case "${option}" in
     h)
       usage
@@ -127,7 +135,7 @@ while getopts ":hr:s:t:c:v:a:d:p" option; do
     p)
       split=true
       ;;
-    v)
+    b)
       video_bitrate="${OPTARG}"
       custom_video_bitrate=true
       ;;
@@ -136,6 +144,9 @@ while getopts ":hr:s:t:c:v:a:d:p" option; do
       ;;
     d)
       output_dir="${OPTARG}"
+      ;;
+    v)
+      verbose=true
       ;;
     :)
       error "Error: '-${OPTARG}' option requires an argument."
@@ -191,7 +202,7 @@ fi
 # Multithreading options
 if [[ -z "${threads}" ]]; then
   if ! cores="$(lscpu --parse=cpu | grep --count --invert-match '^#')"; then
-    echo "Warning: failed to get CPU count, disabling multithreading."
+    log "Warning: failed to get CPU count, disabling multithreading."
     threads="1"
   else
     threads="$((cores-1))"
@@ -210,10 +221,7 @@ if [[ ${#cut_args[@]} -gt 0 ]]; then
     error "Error: failed to create temporary file for cutting."
     exit 1
   fi
-  set -x
-  ffmpeg -i "${input_filepath}" -loglevel "${loglevel}" -threads "${threads}" -y -c copy "${cut_args[@]}" "${tmp_file}"
-  { status=${?}; set +x; } 2>/dev/null
-  if [[ "${status}" -ne 0 ]]; then
+  if ! ([[ "${verbose}" == true ]] && set -x; ffmpeg -i "${input_filepath}" -loglevel "${loglevel}" -threads "${threads}" -y -c copy "${cut_args[@]}" "${tmp_file}"); then
     error "Error: failed to cut input file."
     exit 1
   fi
@@ -235,7 +243,7 @@ if [[ -n "${output_vres}" ]]; then
     exit 1
   fi
   if [[ "${input_vres}" -eq "${output_vres}" ]]; then
-    echo "Warning: output resolution matches input, ignoring (-r ${output_vres})."
+    log "Warning: output resolution matches input (-r ${output_vres})."
   else
     ffmpeg_args+=(-vf scale="-2:${output_vres}")
   fi
@@ -269,7 +277,7 @@ else
   if [[ -n "${output_size}" ]]; then
     # Set video bitrate to fit within file size limit
     if [[ -n "${custom_video_bitrate}" ]]; then
-      echo "Warning: ignoring video bitrate (-b ${video_bitrate})."
+      log "Warning: ignoring video bitrate (-b ${video_bitrate})."
     fi
     if ! duration="$(get_duration "${input_filepath}")"; then
       error "Error: failed to get input file duration."
