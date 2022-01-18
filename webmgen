@@ -2,6 +2,9 @@
 
 # Convert file to VP8-encoded webm
 
+# Avoid prepending '+' to output when using 'set -x'
+export PS4=""
+
 # Default ffmpeg options ###############################################################################################
 
 video_codec="libvpx"
