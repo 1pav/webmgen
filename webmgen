@@ -22,10 +22,10 @@ function usage() {
   echo 
   echo "Options:"
   echo "  -r RESOLUTION     vertical RESOLUTION (keeps aspect ratio)"
-  echo "  -v BITRATE        video BITRATE (default: ${video_bitrate})"
+  echo "  -b BITRATE        video BITRATE (default: ${video_bitrate})"
   echo "  -a BITRATE        audio BITRATE (default: ${audio_bitrate})"
   echo "  -s SIZE           SIZE of output file(s), expressed in bytes. Actual size can be slightly more"
-  echo "                    or less than requested size. If -p is not set, bitrate specified by -v is ignored."
+  echo "                    or less than requested size. If -p is not set, bitrate specified by -b is ignored."
   echo "  -p                split output into multiple files. Requires -s."
   echo "  -c [START],[END]  cut input file from START to END before encoding."
   echo "                    START, END are formatted as HH:MM:SS; only one can be omitted."
@@ -269,7 +269,7 @@ else
   if [[ -n "${output_size}" ]]; then
     # Set video bitrate to fit within file size limit
     if [[ -n "${custom_video_bitrate}" ]]; then
-      echo "Warning: ignoring video bitrate (-v ${video_bitrate})."
+      echo "Warning: ignoring video bitrate (-b ${video_bitrate})."
     fi
     if ! duration="$(get_duration "${input_filepath}")"; then
       error "Error: failed to get input file duration."

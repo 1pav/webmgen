@@ -12,7 +12,7 @@ This script converts the given input file to webm. It's a wrapper around ffmpeg 
 
 ## Examples
 
-Convert to webm using default encoding settings (`-v 1M`, `-a 128K`):
+Convert to webm using default encoding settings (`-b 1M`, `-a 128K`):
 
 ```
 webmgen input.mp4
@@ -21,7 +21,7 @@ webmgen input.mp4
 Set video and audio bitrate to 2 Mb/s and 256 Kb/s respectively:
 
 ```
-webmgen -v 2M -a 256K input.mp4
+webmgen -b 2M -a 256K input.mp4
 ```
 
 Limit file size to 5 MB:
@@ -58,10 +58,10 @@ Where appropriate, options accept the following unit prefixes: K, M, G.
 
 Options:
   -r RESOLUTION     vertical RESOLUTION (keeps aspect ratio)
-  -v BITRATE        video BITRATE (default: 1M)
+  -b BITRATE        video BITRATE (default: 1M)
   -a BITRATE        audio BITRATE (default: 128K)
   -s SIZE           SIZE of output file(s), expressed in bytes. Actual size can be slightly more
-                    or less than requested size. If -p is not set, bitrate specified by -v is ignored.
+                    or less than requested size. If -p is not set, bitrate specified by -b is ignored.
   -p                split output into multiple files. Requires -s.
   -c [START],[END]  cut input file from START to END before encoding.
                     START, END are formatted as HH:MM:SS; only one can be omitted.
